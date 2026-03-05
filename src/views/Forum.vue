@@ -338,6 +338,14 @@ const toggleCollect = (postId) => {
   if (post) post.isCollected = !post.isCollected;
 };
 
+// 切换点赞状态
+const toggleLike = (postId) => {
+  const post = allPosts.value.find(p => p.id === postId);
+  if (post) {
+    post.isLiked = !post.isLiked;
+  }
+};
+
 // 发布帖子的方法
 const handlePublish = () => {
   if (!newPost.value.content.trim() && !newPost.value.title.trim() && previewImages.value.length === 0) {
