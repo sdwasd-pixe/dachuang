@@ -1,10 +1,12 @@
-// src/stores/forumStore.js
 import { defineStore } from 'pinia'
 
 // 定义论坛全局状态
 export const useForumStore = defineStore('forum', {
     // 持久化的状态（会同步到localStorage）
     state: () => ({
+        // 历史记录（从localStorage读取，无则为空数组）
+        historyList: JSON.parse(localStorage.getItem('forumHistory')) || [],
+
         // 所有帖子数据（初始值从localStorage读取，无则用默认数据）
         allPosts: JSON.parse(localStorage.getItem('forumPosts')) || [
             {
@@ -65,15 +67,30 @@ export const useForumStore = defineStore('forum', {
         },
 
         // 发布新帖子
-        publishPost(post) {
-            this.allPosts.unshift(post)
-            this.savePostsToLocal() // 同步到本地存储
+        publishPost(postData) {
+            // 创建一个标准化的帖子对象
+            const fullPost = {
+                id: Date.now(), // 自动生成 ID，防止重复
+                author: postData.author || '匿名用户',
+                title: postData.title || '',
+                content: postData.content || '',
+                images: postData.images || [],
+                isLiked: false,      // 默认不点赞
+                isCollected: false,  // 默认不收藏
+                comments: []         // 默认评论为空
+            }
+
+            this.allPosts.unshift(fullPost) // 添加到最前面
+            this.savePostsToLocal()         // 存入 localStorage
         },
 
         // 添加评论
-        addComment(postIndex, comment) {
-            this.allPosts[postIndex].comments.push(comment)
-            this.savePostsToLocal()
+        addComment(postId, comment) {
+            const post = this.allPosts.find(p => p.id === postId)
+            if (post) { // 加判空，避免报错
+                post.comments.push(comment)
+                this.savePostsToLocal()
+            }
         },
 
         // 切换点赞状态
@@ -99,6 +116,31 @@ export const useForumStore = defineStore('forum', {
             this.newPost = { author: '', title: '', content: '', images: [] }
             this.previewImages = []
             this.showCreationModal = false
-        }
+        },
+
+        // 添加历史记录（带持久化）
+        addHistory(post, actionType) {
+            // actionType: 'like' / 'comment' / 'collect'
+            const exist = this.historyList.find(item => item.id === post.id)
+            if (exist) {
+                exist.actionType = actionType
+            } else {
+                this.historyList.unshift({
+                    id: post.id,
+                    title: post.title,
+                    content: post.content,
+                    author: post.author,
+                    actionType
+                })
+            }
+            // 保存到localStorage，刷新不丢
+            localStorage.setItem('forumHistory', JSON.stringify(this.historyList))
+        },
+
+        // 清空历史（带持久化）
+        clearHistory() {
+            this.historyList = []
+            localStorage.removeItem('forumHistory')
+        },
     }
-}) 
+})

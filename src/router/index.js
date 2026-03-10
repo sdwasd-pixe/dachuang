@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 
-// 懒加载页面）
+// 懒加载页面
 const Login = () => import('@/views/Login.vue')
 const Home = () => import('@/views/Home.vue')
 const Message = () => import('@/views/MessagePage.vue')
@@ -10,6 +10,7 @@ const History = () => import('@/views/HistoryPage.vue')
 const Resume = () => import('@/views/Resume.vue')
 const Forum = () => import('@/views/Forum.vue')
 const Interview = () => import('@/views/Interview.vue')
+import CompanyDetail from '@/views/CompanyDetail.vue'
 
 const routes = [
     // 登录页（无布局，默认首页）
@@ -76,7 +77,6 @@ const routes = [
             requiresAuth: true
         }
     },
-
     {
         path: '/message',
         name: 'Message',
@@ -107,6 +107,16 @@ const routes = [
             requiresAuth: true
         }
     },
+    {
+        path: '/company/detail',
+        name: 'CompanyDetail',
+        component: CompanyDetail,
+        meta: {
+            title: '公司详情',
+            layout: MainLayout,
+            requiresAuth: true
+        }
+    },
     // 兜底路由：所有未知路径跳登录页
     {
         path: '/:pathMatch(.*)*',
@@ -119,10 +129,16 @@ const router = createRouter({
     routes
 })
 
-// 全局登录守卫（核心：未登录拦截）
+// 全局登录守卫（核心优化：严格判断登录状态）
 router.beforeEach((to, from, next) => {
     const requiresAuth = to.meta.requiresAuth || false
-    const isLoggedIn = !!localStorage.getItem('isLogin')
+    // 核心修改：严格判断localStorage的值是否为字符串'true'
+    const isLoggedIn = localStorage.getItem('isLogin') === 'true'
+
+    // 调试日志：方便排查问题
+    console.log('路由守卫 - 目标页面:', to.path)
+    console.log('路由守卫 - 是否需要登录:', requiresAuth)
+    console.log('路由守卫 - 实际登录状态:', isLoggedIn)
 
     if (requiresAuth && !isLoggedIn) {
         // 未登录 → 跳登录页，并记录目标页面
@@ -130,7 +146,13 @@ router.beforeEach((to, from, next) => {
             path: '/login',
             query: { redirect: to.fullPath }
         })
-    } else {
+    }
+    // 新增：已登录状态访问登录页，自动跳回之前的页面或首页
+    else if (!requiresAuth && isLoggedIn && to.path === '/login') {
+        const redirectPath = to.query.redirect || '/home'
+        next(redirectPath)
+    }
+    else {
         next()
     }
 })
